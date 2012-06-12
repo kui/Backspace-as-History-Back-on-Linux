@@ -3,5 +3,10 @@
 BACKSPACE_CODE = 8
 
 hook = (event) ->
-  return null unless event.which is BACKSPACE_CODE
+  return null if isIgnoreEvent event
+
+isIgnoreEvent = (event) ->
+  (event.which isnt BACKSPACE_CODE) and
+    (not event.ctrlKey) and
+    (not event.altKey)
 
