@@ -4,7 +4,11 @@ describe 'On hook.coffee, ', ->
 
   describe '#.isIgnoreEvent', ->
 
+    event = null
+
     describe 'with non backspace, no alt key and no ctrl key', ->
+      it 'should return false', ->
+        isIgnoreEvent event
 
     describe 'with non backspace, pressed alt key and no ctrl key', ->
 

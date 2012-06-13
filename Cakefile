@@ -17,15 +17,15 @@ util = require 'util'
 path = require 'path'
 fs = require 'fs'
 
-eachLine = (str, callback) ->
-  callback line for line in str.split /\r?\n/
+eachLine = (str, cb) ->
+  cb line for line in str.split /\r?\n/
 
 logEachLine = (str) ->
   eachLine str, (line) -> util.log line
 
 execCallback = (err, stdout, stderr) ->
   logEachLine stdout if stdout
-  logEachLine err if err
+  logEachLine stderr if stderr
 
   if err
     util.log '=> fail'
@@ -63,7 +63,10 @@ task 'build', "Build #{OUTPUT_DIR}/#{USERSCRIPT} from src/*.coffee", ->
   cmd = "(#{echoHeader}; #{coffee}) > #{OUTPUT_DIR}/#{USERSCRIPT}"
 
   util.log '$ '+cmd
-  proc = cp.exec cmd, execCallback
+  proc = cp.exec cmd, (err, stdout, stderr) ->
+    execCallback err, stdout, stderr
+    invoke 'test'
+
   proc.stdin.end generateUSHeader()
 
 task 'clean', "Remove all generated files", ->
@@ -93,3 +96,4 @@ task 'test:unit', "Run all unit tests on #{TEST_DIR}", ->
       util.log '$ '+mochaCmd
       cp.exec mochaCmd, execCallback
 
+task 'test', 'Run integration tests', ->
