@@ -9,12 +9,16 @@
     "url": "git://github.com/kui/Backspace-as-History-Back-on-Linux.git"
   },
   "scripts": {
-    "test": "cake test"
+    "test": "cake test:unit"
   },
   "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "sinon": "1.3.x",
+    "mocha": "1.1.x",
+    "coffee-script": "1.3.x"
+  },
   "optionalDependencies": {},
   "engines": {
-    "node": "*"
+    "node": "0.6.*"
   }
 }
