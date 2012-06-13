@@ -96,4 +96,3 @@ task 'test:unit', "Run all unit tests on #{TEST_DIR}", ->
       util.log '$ '+mochaCmd
       cp.exec mochaCmd, execCallback
 
-task 'test', 'Run integration tests', ->
