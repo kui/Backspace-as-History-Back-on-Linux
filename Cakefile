@@ -5,12 +5,12 @@ USERSCRIPT = 'backspace_as_browser_back_on_linux.user.js'
 ##
 
 SOURCE_DIR = 'src'
+SOURCE_FILENAMES = ['hook', 'main']
 OUTPUT_DIR = 'build'
 TEST_DIR = 'test'
 COFFEE = 'coffee'
 MOCHA = "node_modules/.bin/mocha"
 PACKAGE_JSON = 'package.json'
-
 
 cp = require 'child_process'
 util = require 'util'
@@ -50,7 +50,7 @@ generateUSHeader = ->
   // @description #{pkg.description} (WebPage: #{pkg.homepage})
   // @namespace #{pkg.homepage}
   // @version #{pkg.version}
-  // @include https?://*
+  // @match <all_urls>
   // ==/UserScript==
 
 
@@ -58,7 +58,9 @@ generateUSHeader = ->
 
 task 'build', "Build #{OUTPUT_DIR}/#{USERSCRIPT} from src/*.coffee", ->
   mkdirUnlessExists OUTPUT_DIR
-  coffee = "#{COFFEE} --print --compile --join -- #{SOURCE_DIR}"
+  srcFiles = ("\"#{SOURCE_DIR}/#{f}.coffee\"" for f in SOURCE_FILENAMES).join ' '
+
+  coffee = "#{COFFEE} --print --compile --join -- #{srcFiles}"
   echoHeader = 'cat -'
   cmd = "(#{echoHeader}; #{coffee}) > #{OUTPUT_DIR}/#{USERSCRIPT}"
 
