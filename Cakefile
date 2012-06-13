@@ -65,7 +65,6 @@ task 'build', "Build #{OUTPUT_DIR}/#{USERSCRIPT} from src/*.coffee", ->
   util.log '$ '+cmd
   proc = cp.exec cmd, (err, stdout, stderr) ->
     execCallback err, stdout, stderr
-    invoke 'test'
 
   proc.stdin.end generateUSHeader()
 
