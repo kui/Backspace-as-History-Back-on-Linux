@@ -3,4 +3,4 @@
 main = ->
   document.addEventListener 'keydown', hook
 
-main()
+main() if document?

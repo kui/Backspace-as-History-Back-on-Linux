@@ -92,7 +92,8 @@ describe 'In hook.coffee, ', ->
       beforeEach ->
         event.target =
           getAttribute: (name) ->
-            if name is 'contenteditable' then true else null
+            if name is 'contenteditable' then true else undefined
+          selectionStart: undefined
 
       it 'should return true', ->
         r = isIgnoreElement event
@@ -101,8 +102,7 @@ describe 'In hook.coffee, ', ->
     describe 'with a target which have the "selectionStart" property', ->
       beforeEach ->
         event.target =
-          getAttribute: (name) ->
-             if name is 'contenteditable' then false else null
+          getAttribute: (name) -> undefined
           selectionStart: 0
 
       it 'should return true', ->
@@ -112,10 +112,10 @@ describe 'In hook.coffee, ', ->
     describe 'with a target which isn\'t editable', ->
       beforeEach ->
         event.target =
-          getAttribute: (name) ->
-            if name is 'contenteditable' then false else null
+          getAttribute: (name) -> undefined
+          selectionStart: undefined
 
-      it 'should return true', ->
+      it 'should return false', ->
         r = isIgnoreElement event
         assert.equal r, false
 
