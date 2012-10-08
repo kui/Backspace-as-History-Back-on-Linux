@@ -33,8 +33,6 @@ isIgnoreElement = (event) ->
   !! isEditableElement event.target
 
 isEditableElement = (ele) ->
-  ele and
-    ((ele.selectionStart isnt undefined) or
-     ele.getAttribute('contenteditable'))
+  ele? and (ele.selectionStart? or ele.getAttribute('contenteditable')?)
 
 ignoreConditions.push isIgnoreElement

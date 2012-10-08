@@ -1,4 +1,8 @@
-*~
 node_modules
-build
-*.js
+src/*.js
+test/*.js
+src/manifest.json
+*.pem
+*.crx
+Backspace-as-History-Back-on-Linux
+*~

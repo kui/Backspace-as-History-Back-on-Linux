@@ -1,99 +1,174 @@
 # -*- coding:utf-8-unix; mode:coffee; -*-
 
-USERSCRIPT = 'backspace_as_browser_back_on_linux.user.js'
+# commands ####################################################################
+MOCHA = 'node_modules/.bin/mocha'
+COFFEE = 'node_modules/.bin/coffee'
+GOOGLE_CHROME = 'google-chrome'
 
-##
-
+# files or dirs ###############################################################
+PACKAGED_FILES = [
+  'manifest.json'
+  'hook.js'
+  'main.js'
+]
 SOURCE_DIR = 'src'
-SOURCE_FILENAMES = ['hook', 'main']
-OUTPUT_DIR = 'build'
 TEST_DIR = 'test'
-COFFEE = 'coffee'
-MOCHA = "node_modules/.bin/mocha"
-PACKAGE_JSON = 'package.json'
+MANIFEST_COFFEE = "#{SOURCE_DIR}/manifest.coffee"
 
-cp = require 'child_process'
-util = require 'util'
-path = require 'path'
-fs = require 'fs'
+# tasks #######################################################################
+task 'build', 'build crx', ->
+  manifest = getManifest()
 
-eachLine = (str, cb) ->
-  cb line for line in str.split /\r?\n/
+  # create a buid dir
+  build = getBuildDirName(manifest)
+  mkdirUnlessExists build
 
-logEachLine = (str) ->
-  eachLine str, (line) -> util.log line
+  log "generate manifest.json"
+  manifestJsonPath = getManifestJsonPath()
+  json = JSON.stringify manifest
+  fs.writeFileSync manifestJsonPath, json
+  log "=> Success"
 
-execCallback = (err, stdout, stderr) ->
-  logEachLine stdout if stdout
-  logEachLine stderr if stderr
-
-  if err
-    util.log '=> fail'
-    process.exit 1
-  else
-    util.log '=> success'
-
-mkdirUnlessExists = (dirName) ->
-  fs.mkdirSync dirName unless path.existsSync dirName
-
-# generate hte userscript header
-generateUSHeader = ->
-  pkg = JSON.parse fs.readFileSync PACKAGE_JSON
-  propNames = ['name', 'description', 'homepage', 'version']
-
-  unless (propNames.reduce (a, b) -> a and b)
-    throw "provide props(#{prop_names.join ', '}) for #{PACKAGE_JSON}"
-
+  pemFile = "#{build}.pem"
+  packagedFiles = ("'#{SOURCE_DIR}/#{f}'" for f in PACKAGED_FILES).join ' '
+  cmplCmd = """
+    #{COFFEE} --bare --compile #{SOURCE_DIR};
+    cp -v #{packagedFiles} #{build}
   """
-  // ==UserScript==
-  // @name #{pkg.name}
-  // @description #{pkg.description} (WebPage: #{pkg.homepage})
-  // @namespace #{pkg.homepage}
-  // @version #{pkg.version}
-  // @match <all_urls>
-  // ==/UserScript==
+  pkgCmd = "#{GOOGLE_CHROME} --no-message-box --pack-extension='#{build}'"
+  pkgCmd += " --pack-extension-key='#{pemFile}'" if fs.existsSync pemFile
 
+  cmplCb = (code) ->
+    exec2 pkgCmd, pkgCb if code is 0
+  pkgCb = (code) ->
+    log 'ERROR: try to package manually on GUI' if code isnt 0
 
-  """
+  exec2 cmplCmd, cmplCb
 
-task 'build', "Build #{OUTPUT_DIR}/#{USERSCRIPT} from src/*.coffee", ->
-  mkdirUnlessExists OUTPUT_DIR
-  srcFiles = ("\"#{SOURCE_DIR}/#{f}.coffee\"" for f in SOURCE_FILENAMES).join ' '
-
-  coffee = "#{COFFEE} --print --compile --join -- #{srcFiles}"
-  echoHeader = 'cat -'
-  cmd = "(#{echoHeader}; #{coffee}) > #{OUTPUT_DIR}/#{USERSCRIPT}"
-
-  util.log '$ '+cmd
-  proc = cp.exec cmd, (err, stdout, stderr) ->
-    execCallback err, stdout, stderr
-
-  proc.stdin.end generateUSHeader()
 
 task 'clean', "Remove all generated files", ->
-  cmd = "rm -fr #{OUTPUT_DIR} #{TEST_DIR}/*.js"
-  util.log '$ '+cmd
-  cp.exec cmd, execCallback
+  manifest = getManifest()
+  build = getBuildDirName(manifest)
+  manifestJsonPath = getManifestJsonPath()
 
-task 'test:unit', "Run all unit tests on #{TEST_DIR}", ->
-  for testFile in fs.readdirSync TEST_DIR
-    continue unless m = testFile.match /^(.*)_test.coffee$/
-    testFile = "#{TEST_DIR}/#{m[0]}"
-    util.log "test: #{testFile}"
+  targets = listPathsByExt 'crx', '.'
+  targets = targets.concat listPathsByExt 'js', '.'
+  targets.push manifestJsonPath if fs.existsSync manifestJsonPath
+  targets.push build if fs.existsSync build
+  targets = ("'#{f}'" for f in targets)
 
-    srcFile = "#{SOURCE_DIR}/#{m[1]}.coffee"
-    unless path.existsSync srcFile
-      util.log "not found a src file (#{srcFile})"
-      continue
-    util.log "src:  #{srcFile}"
+  if targets.length == 0
+    log 'not found files to remove'
+    return
 
-    jsFile = "#{TEST_DIR}/#{m[1]}_test.js"
-    compileCmd = "#{COFFEE} --compile --join #{jsFile} #{srcFile} #{testFile}"
+  cmd = "rm -v -r #{targets.join ' '}"
 
-    util.log '$ '+compileCmd
-    cp.exec compileCmd, (err, stdout, stderr) ->
-      execCallback err, stdout, stderr
-      mochaCmd = "#{MOCHA} #{jsFile}"
-      util.log '$ '+mochaCmd
-      cp.exec mochaCmd, execCallback
+  exec2 cmd, ->
 
+
+task 'test', "Run all unit tests on #{TEST_DIR}", ->
+  testFiles = listPathsByExt 'coffee', TEST_DIR
+  srcFiles = listPathsByExt 'coffee', SOURCE_DIR
+  srcFilesStr = ("'#{c}'" for c in srcFiles).join ' '
+
+  next = ()->
+    f = testFiles.shift()
+    mainTest f if f
+
+  mainTest = (testFile) ->
+    unless m = testFile.match /(.+?\/)?[^\/]+_test\.coffee$/
+      next()
+      return
+    log "test: #{testFile}"
+
+    srcFile = testFile.replace(TEST_DIR, SOURCE_DIR)
+      .replace(/_test\.coffee/, '.coffee')
+    unless fs.existsSync srcFile
+      log "not found a src file (#{srcFile})"
+      next()
+      return
+    log "src:  #{srcFile}"
+
+    jsFile = testFile.replace /\.coffee$/, '.js'
+
+    cmplCmd = "#{COFFEE} --compile --join '#{jsFile}' #{srcFilesStr} '#{testFile}'"
+    cmplCb = (code) ->
+      exec2 testCmd, testCb if code is 0
+
+    testCmd = "#{MOCHA} -R spec --colors #{jsFile}"
+    testCb = (code, signal) ->
+      if code is 0
+        next()
+      else
+        log "ERROR: exit #{code}"
+
+    exec2 cmplCmd, cmplCb
+
+  mainTest testFiles.shift()
+
+# functions ###################################################################
+CoffeeScript = require 'coffee-script'
+cp = require 'child_process'
+util = require 'util'
+fs = require 'fs'
+
+log = () ->
+  util.log.apply util, arguments
+
+buffer = ""
+execLog = (str) ->
+  buffer += str
+  arr = buffer.split(/\r?\n/)
+  buffer = arr.pop()
+  log line for line in arr
+
+exec2 = (cmd, cb) ->
+  log "$ #{cmd.replace(/\r?\n/, ' ')}"
+  child = cp.exec cmd, () ->
+  child.stdout.on 'data', execLog
+  child.stderr.on 'data', execLog
+  child.on 'exit', (code, signal) ->
+    log '=> ' + if code is 0 then 'Success' else 'Fail'
+    cb code, signal
+
+listPathsByExt = (ext, p) ->
+  return [] if p.match("/(?:node_modules|.git)$")
+
+  list = []
+  stats = fs.statSync p
+
+  if stats.isFile()
+    list.push p if p.match "\\.#{ext}$"
+
+  else if stats.isDirectory()
+    for child in fs.readdirSync p
+      list = list.concat listPathsByExt ext, "#{p}/#{child}"
+
+  list
+
+mkdirUnlessExists = (dir)->
+  if not fs.existsSync dir
+    fs.mkdirSync dir
+  else if (s = fs.statSync(dir)) && (not s.isDirectory())
+    throw "cannot create #{build} directory. please remove or move #{buid} file."
+
+getManifest = ()-> CoffeeScript.eval fs.readFileSync MANIFEST_COFFEE, 'utf8'
+
+getManifestJsonPath = ()->
+  if not MANIFEST_COFFEE.match /.coffee$/
+    throw 'MANIFEST_COFFEE should have .coffee ext file name'
+  return MANIFEST_COFFEE.replace /.coffee$/, '.json'
+
+getBuildDirName = (manifest) -> manifest.name.replace /\s+/, '_'
+
+readdirRecurceveSync = (file) ->
+  if s = fs.statSync file
+    if s.isDirectory()
+      list = []
+      for child in fs.readdirSync(file)
+        list = list.concat readdirRecurceveSync "#{file}/#{child}"
+      return list
+    else
+      return [file.toString()]
+  else
+    []
