@@ -2,7 +2,7 @@
   "author": "Keiichiro Ui <daftbeats@gmail.com> (http://k-ui.jp/)",
   "name": "Backspace-as-History-Back-on-Linux",
   "description": "a userscript for remap the backspace key to browser history back for Google Chrome only on Linux",
-  "version": "0.0.2",
+  "version": "1.0.1",
   "homepage": "https://github.com/kui/Backspace-as-History-Back-on-Linux",
   "repository": {
     "type": "git",
